@@ -16,8 +16,39 @@
 #define FAT_SIZE 1024
 #define ROOT_DIR_SIZE 128
 #define CLUSTER_BLOCKS 1024
- 
-// DIR ENTRY
+
+// CORES SHELL
+#define GREEN  "\x1B[32m"
+#define BLUE  "\x1B[34m"
+#define WHITE  "\x1B[37m"
+
+// COMANDOS
+#define EXIT "exit"
+#define MKDIR "mkdir"
+#define INIT "init"
+#define LOAD "load\n"
+#define LS "ls\n"
+#define RMDIR "rmdir\n"
+#define CREATE "create\n"
+#define RM "rm\n"
+#define WRITE "write\n"
+#define CAT "cat\n"
+#define SAUDACOES "VOLTE SEMPRE!"
+
+
+
+
+// • load - carregar o sistema de arquivos do disco
+// • ls [/caminho/diretorio] - listar diret ́orio
+// • mkdir [/caminho/diretorio] - criar diret ́orio
+// • rmdir [/caminho/diretorio] - remover diret ́orio
+// • create [/caminho/arquivo] - criar arquivo
+// • rm [/caminho/arquivo] - excluir arquivo
+// • write ”string” [/caminho/arquivo] - anexar dados em um arquivo
+// • cat [/caminho/arquivo] - ler o conte ́
+// udo de um arquivo
+
+// dir entry
 typedef struct dir_entry{
   uint8_t filename[16];
   uint8_t attributes;
@@ -26,18 +57,19 @@ typedef struct dir_entry{
   uint32_t size;
 };
 
-// BLOCK
+// block
 uint8_t block[BLOCK_SIZE];
 
-// FAT
+// fat
 uint32_t fat[FAT_SIZE];
 
-// ROOT DIR
+// root dir
 struct dir_entry root_dir[ROOT_DIR_SIZE];
 
 FILE *ptr_myfile;
 
-// Inicializa o Boot
+
+// Inicializa o boot
 void initBootBlock(){
   
   int i;
@@ -53,10 +85,9 @@ void initBootBlock(){
   fseek(ptr_myfile,0, SEEK_SET);
   fwrite(&block,sizeof(block), 1, ptr_myfile);
   fflush(ptr_myfile);
-
-
 }
-// Inicializa o Fat
+
+// Inicializa o fat
 void initFatBlock(){
   
   int i;
@@ -77,11 +108,9 @@ void initFatBlock(){
 
   fwrite(&fat,sizeof(fat), 1, ptr_myfile);
   fflush(ptr_myfile);
-
-
 }
 
-// Inicializa o ROOT DIR
+// Inicializa o root dir
 void initRootDir(){
   int i;
   int k;
@@ -111,15 +140,26 @@ void initRootDir(){
   fseek(ptr_myfile,BLOCK_SIZE * 2, SEEK_SET);
   fwrite(&root_dir,sizeof(root_dir), 1, ptr_myfile);
   fflush(ptr_myfile);
-
-
 }
 
+// Inicializa o cluster
 void initClusterBlock(){
 	int i;
-	for(i=0;i<BLOCK_SIZE;i++){
-		block[i] = 0;
-	}
+  int k;
+  struct dir_entry dir;
+  
+  dir.first_block = 0;
+  dir.size = 0;
+  dir.attributes = 0;
+  for (k = 0; k < 16; k++)
+  {
+    dir.filename[k] = 0;
+  }
+  
+  for (k = 0; k < 7; k++)
+  {
+    dir.reserved[k] = 0 ; 
+  }
 
 	if (!ptr_myfile)
 	{
@@ -127,40 +167,38 @@ void initClusterBlock(){
 		return 1;
 	}
 	
-	/**Inicializa o for em 3 pois os blocos anteriores já 
+	/**
+  * Inicializa o i em 3 pois os blocos anteriores já 
 	* foram inicializados anteriormente
 	*/
 	for(i=3;i<CLUSTER_BLOCKS;i++){
 		fseek(ptr_myfile,BLOCK_SIZE*(i+4), SEEK_SET);
-		fwrite(&block,sizeof(block), 1, ptr_myfile);
+		fwrite(&dir,sizeof(dir), 1, ptr_myfile);
 		fflush(ptr_myfile);
 	}
-	
 }
-void loadBloco(){
 
-    ptr_myfile = fopen("fat.part","r+");
+// Carrega um bloco para a estrutura block 
+void loadBlock(int block_index){
+
     if (!ptr_myfile)
     {
       printf("Unable to open file!");
       return 1;
     }
-    fseek(ptr_myfile,0, SEEK_SET);
-    /*SEEK_SET comeca no inicio do arquivo
-    SEEK_END comeca no fim do arquivo
-    SEEK_CUR comeca na posicao corrente do arquivo*/
-    fread(&block,sizeof(block), 1, ptr_myfile);
-    fclose(ptr_myfile);
-    int i;
-    for( i=0;i<BLOCK_SIZE;i++){
-      printf("0x%x\n", block[i]);
-    }
+    /*
+    * SEEK_SET comeca no inicio do arquivo
+    * SEEK_END comeca no fim do arquivo
+    * SEEK_CUR comeca na posicao corrente do arquivo
+    */
+    fseek(ptr_myfile,BLOCK_SIZE*block_index, SEEK_SET);
+    fread(&block, sizeof(block), 1, ptr_myfile);
 }
 
 
 void init(){
 
-  ptr_myfile = fopen("fat.part","wb");
+  
 
   // Inicializa boot block com 0xa5
   initBootBlock();  
@@ -171,10 +209,10 @@ void init(){
   // Inicializa os outros blocos do cluster
   initClusterBlock();
 
-  fclose(ptr_myfile);
+  
   
 }
-
+// Cria diretório 
 void mkdir(const char* filename){
 	// quebra o caminho do diretório
 	char *toke;
@@ -188,10 +226,26 @@ void mkdir(const char* filename){
 	}
 	printf("tamano do caracter %s \n",name);
 }
-int main (void) {
-	//mkdir("teste");  
-	init();
 
+void shell(){
+  char cmd[1024];
+  
+  while(strcmp(EXIT,cmd) != 0){
+        printf("%s08103842@l1846641 %s~/ $  %s",GREEN,BLUE,WHITE);
+        fgets(cmd, sizeof(cmd), stdin);
+        strtok(cmd, "\n");
+  }
+   printf("%s",SAUDACOES );
+
+
+}
+int main (void) {
+  shell(); 
+  //ptr_myfile = fopen("fat.part","w+");
+	//mkdir("teste");  
+	//init();
+  
+  //fclose(ptr_myfile);
 
   return 0;
 }
