@@ -90,7 +90,7 @@ void initRootDir(){
   // root.first_block =
   // root.size = 
   int k;
-  for ( i = 0; i < ROOT_DIR_SIZE; ++i)
+  for ( i = 0; i < ROOT_DIR_SIZE; i++)
   {
     root_dir[i].first_block = 0;
     root_dir[i].size = 0;
