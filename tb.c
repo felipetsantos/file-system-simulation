@@ -95,12 +95,12 @@ void initRootDir(){
     root_dir[i].first_block = 0;
     root_dir[i].size = 0;
     root_dir[i].attributes = 0;
-    for (k = 0; i < 16; k++)
+    for (k = 0; i < 15; k++)
     {
       root_dir[i].filename[k] = 0x55;
     }
     
-    for (k = 0; i < 7; k++)
+    for (k = 0; i < 6; k++)
     {
       root_dir[i].reserved[k] = 0 ; 
     }
