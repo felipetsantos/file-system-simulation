@@ -15,6 +15,7 @@
 #define BLOCK_SIZE 4096
 #define FAT_SIZE 1024
 #define ROOT_DIR_SIZE 128
+#define CLUSTER_BLOCKS 1024
  
 // DIR ENTRY
 typedef struct dir_entry{
@@ -28,12 +29,15 @@ typedef struct dir_entry{
 // BLOCK
 uint8_t block[BLOCK_SIZE];
 
+// FAT
 uint32_t fat[FAT_SIZE];
 
+// ROOT DIR
 struct dir_entry root_dir[ROOT_DIR_SIZE];
 
 FILE *ptr_myfile;
 
+// Inicializa o Boot
 void initBootBlock(){
   
   int i;
@@ -41,7 +45,6 @@ void initBootBlock(){
     block[i] = 0xa5;
   }
 
-//  ptr_myfile = fopen("fat.part","wb");
   if (!ptr_myfile)
   {
     printf("Unable to open file!");
@@ -50,9 +53,10 @@ void initBootBlock(){
   fseek(ptr_myfile,0, SEEK_SET);
   fwrite(&block,sizeof(block), 1, ptr_myfile);
   fflush(ptr_myfile);
-//  fclose(ptr_myfile);
+
 
 }
+// Inicializa o Fat
 void initFatBlock(){
   
   int i;
@@ -63,8 +67,6 @@ void initFatBlock(){
     fat[i] = 0;
   }
 
-
-//  ptr_myfile = fopen("fat.part","wb");
   if (!ptr_myfile)
   {
     printf("Unable to open file!");
@@ -75,39 +77,31 @@ void initFatBlock(){
 
   fwrite(&fat,sizeof(fat), 1, ptr_myfile);
   fflush(ptr_myfile);
-//  fclose(ptr_myfile);
+
 
 }
 
+// Inicializa o ROOT DIR
 void initRootDir(){
-  
   int i;
-
-  // Inicicialização do root
-  // root.filename = 0 ;
-  // root.attributes = DIR_CODE;
-  // root.reserved =
-  // root.first_block =
-  // root.size = 
   int k;
   for ( i = 0; i < ROOT_DIR_SIZE; i++)
   {
     root_dir[i].first_block = 0;
     root_dir[i].size = 0;
     root_dir[i].attributes = 0;
-    for (k = 0; i < 15; k++)
+    for (k = 0; k < 16; k++)
     {
-      root_dir[i].filename[k] = 0x55;
+      root_dir[i].filename[k] = 0;
     }
     
-    for (k = 0; i < 6; k++)
+    for (k = 0; k < 7; k++)
     {
       root_dir[i].reserved[k] = 0 ; 
     }
 
   }
 
-  //  ptr_myfile = fopen("fat.part","wb");
   if (!ptr_myfile)
   {
     printf("Unable to open file!");
@@ -115,13 +109,34 @@ void initRootDir(){
   }
 
   fseek(ptr_myfile,BLOCK_SIZE * 2, SEEK_SET);
-
   fwrite(&root_dir,sizeof(root_dir), 1, ptr_myfile);
   fflush(ptr_myfile);
-//  fclose(ptr_myfile);
+
 
 }
 
+void initClusterBlock(){
+	int i;
+	for(i=0;i<BLOCK_SIZE;i++){
+		block[i] = 0;
+	}
+
+	if (!ptr_myfile)
+	{
+		printf("Unable to open file!");
+		return 1;
+	}
+	
+	/**Inicializa o for em 3 pois os blocos anteriores já 
+	* foram inicializados anteriormente
+	*/
+	for(i=3;i<CLUSTER_BLOCKS;i++){
+		fseek(ptr_myfile,BLOCK_SIZE*(i+4), SEEK_SET);
+		fwrite(&block,sizeof(block), 1, ptr_myfile);
+		fflush(ptr_myfile);
+	}
+	
+}
 void loadBloco(){
 
     ptr_myfile = fopen("fat.part","r+");
@@ -146,30 +161,17 @@ void loadBloco(){
 void init(){
 
   ptr_myfile = fopen("fat.part","wb");
-  // // Inicializa boot
+
+  // Inicializa boot block com 0xa5
   initBootBlock();  
-  
+  // Incializa fat
   initFatBlock();
-
+  // Inicializa o root dir
   initRootDir();
-  // int i;
+  // Inicializa os outros blocos do cluster
+  initClusterBlock();
 
-  
-  
-  // fat[BOOT_INDEX] = 0xa5;
-  
-  // // Inicializa a fat
-  // fat[FAT_INDEX] = END_F;
-    
-  // // Inicializa o root dir
-  // fat[ROOT_DIR] = END_F;
-  
-  // // Inicializa o restante da fat
-  // for(i=ROOT_DIR+1;i<1024;i++){
-  //   fat[i] = FREE_CLUSTER;
-  // }
-
-  // writeFat(fat);
+  fclose(ptr_myfile);
   
 }
 
