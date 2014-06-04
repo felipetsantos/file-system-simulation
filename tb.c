@@ -175,8 +175,22 @@ void init(){
   
 }
 
+void mkdir(const char* filename){
+	// quebra o caminho do diretório
+	char *toke;
+	char *name;
+	toke = strtok(strdup(filename),"/");
+	name = toke;
+	while(toke!=NULL){
+		
+		name = toke;
+		toke= strtok(NULL,"/");	
+	}
+	printf("tamano do caracter %s \n",name);
+}
 int main (void) {
-  init();
+	//mkdir("teste");  
+	init();
 
 
   return 0;
