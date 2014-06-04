@@ -89,7 +89,6 @@ void initRootDir(){
   // root.reserved =
   // root.first_block =
   // root.size = 
-  int i;
   int k;
   for ( i = 0; i < ROOT_DIR_SIZE; ++i)
   {
