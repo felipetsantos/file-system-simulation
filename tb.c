@@ -12,6 +12,7 @@
 #define END_F 0xffffffff
 #define FREE_CLUSTER 0x00000000
 
+// Tamanhos
 #define BLOCK_SIZE 4096
 #define FAT_SIZE 1024
 #define ROOT_DIR_SIZE 128
@@ -36,17 +37,6 @@
 #define SAUDACOES "VOLTE SEMPRE!"
 
 
-
-
-// • load - carregar o sistema de arquivos do disco
-// • ls [/caminho/diretorio] - listar diret ́orio
-// • mkdir [/caminho/diretorio] - criar diret ́orio
-// • rmdir [/caminho/diretorio] - remover diret ́orio
-// • create [/caminho/arquivo] - criar arquivo
-// • rm [/caminho/arquivo] - excluir arquivo
-// • write ”string” [/caminho/arquivo] - anexar dados em um arquivo
-// • cat [/caminho/arquivo] - ler o conte ́
-// udo de um arquivo
 
 // dir entry
 typedef struct dir_entry{
@@ -201,13 +191,20 @@ void init(){
   
 
   // Inicializa boot block com 0xa5
-  initBootBlock();  
+  initBootBlock();
+  printf("Boot inicializado\n");  
+  
   // Incializa fat
   initFatBlock();
+  printf("Fat inicializada\n"); 
+
   // Inicializa o root dir
   initRootDir();
+  printf("Root dir inicializada\n"); 
+
   // Inicializa os outros blocos do cluster
   initClusterBlock();
+  printf("Cluster inicializado\n"); 
 
   
   
@@ -240,7 +237,7 @@ void shell(){
         strtok(buffer, "\n");
         params = strtok(strdup(buffer)," ");
         cmd = params;
-        selectCommand(cmd,params);
+        selectCommand(cmd,strtok(NULL,""));
   }
   
   printf("%s \n",SAUDACOES);
@@ -249,13 +246,25 @@ void shell(){
 }
 
 // Seleciona o comando digitado no shell
-void selectCommand(char *cmd,char *params){
+void  selectCommand(char *cmd,char *params){
+  
+
   
   // INIT
   if(strcmp(INIT,cmd) == 0){
+    
+    char *param[0];
+
     // Executa o comando init
-    init();
-  
+    ptr_myfile = fopen("fat.part","w+");
+
+    // Testa se os parametros estão corretos
+    if(testParams(params,0,param) == 1){
+      init();
+    }else{
+      printf("O comando %s não tem parametros\n",INIT);
+    }
+
   //LOAD
   }else if(strcmp(LOAD,cmd) == 0){
     printf("%s ainda não foi implementado\n",LOAD);
@@ -266,7 +275,17 @@ void selectCommand(char *cmd,char *params){
 
   // MKDIR
   }else if(strcmp(MKDIR,cmd) == 0){
-    printf("%s ainda não foi implementado\n",MKDIR);
+        char *param[1];
+
+        // Executa o comando mkdir
+        ptr_myfile = fopen("fat.part","w+");
+
+        // Testa se os parametros estão corretos
+        if(testParams(params,1,param) == 1){
+          mkdir(parm[0]);
+        }else{
+          printf("O comando %s não tem parametros\n",INIT);
+        }
 
   //RMDIR
   }else if(strcmp(RMDIR,cmd) == 0){
@@ -297,7 +316,33 @@ void selectCommand(char *cmd,char *params){
 
 }
 
+// Testa o número de parametros
+int testParams(char *params,int number,char *param[]){
+  //char *param[number];
+  int count;
+  count = 0;
+
+  params = strtok(params," ");
+  
+  
+  while(params!=NULL){
+    if(count < number){
+      param[count] = params;
+    }
+    params = strtok(NULL," ");
+    //printf("%s\n",params);
+    count++;
+  }
+
+  if(count == number){
+    return 1;
+  }else{
+    return 0;
+  }
+
+}
 int main (void) {
+  
   shell(); 
   //ptr_myfile = fopen("fat.part","w+");
 	//mkdir("teste");  
