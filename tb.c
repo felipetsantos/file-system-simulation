@@ -24,15 +24,15 @@
 
 // COMANDOS
 #define EXIT "exit"
-#define MKDIR "mkdir"
 #define INIT "init"
-#define LOAD "load\n"
-#define LS "ls\n"
-#define RMDIR "rmdir\n"
-#define CREATE "create\n"
-#define RM "rm\n"
-#define WRITE "write\n"
-#define CAT "cat\n"
+#define LOAD "load"
+#define LS "ls"
+#define MKDIR "mkdir"
+#define RMDIR "rmdir"
+#define CREATE "create"
+#define RM "rm"
+#define WRITE "write"
+#define CAT "cat"
 #define SAUDACOES "VOLTE SEMPRE!"
 
 
@@ -228,17 +228,75 @@ void mkdir(const char* filename){
 }
 
 void shell(){
-  char cmd[1024];
+  char buffer[1024];
+  char *cmd;
+  //char *params[];
+  char *params;
   
   while(strcmp(EXIT,cmd) != 0){
+
         printf("%s08103842@l1846641 %s~/ $  %s",GREEN,BLUE,WHITE);
-        fgets(cmd, sizeof(cmd), stdin);
-        strtok(cmd, "\n");
+        fgets(buffer, sizeof(buffer), stdin);
+        strtok(buffer, "\n");
+        params = strtok(strdup(buffer)," ");
+        cmd = params;
+        selectCommand(cmd,params);
   }
-   printf("%s",SAUDACOES );
+  
+  printf("%s \n",SAUDACOES);
 
 
 }
+
+// Seleciona o comando digitado no shell
+void selectCommand(char *cmd,char *params){
+  
+  // INIT
+  if(strcmp(INIT,cmd) == 0){
+    // Executa o comando init
+    init();
+  
+  //LOAD
+  }else if(strcmp(LOAD,cmd) == 0){
+    printf("%s ainda não foi implementado\n",LOAD);
+
+  // LS
+  }else if(strcmp(LS,cmd) == 0){
+    printf("%s ainda não foi implementado\n",LS);
+
+  // MKDIR
+  }else if(strcmp(MKDIR,cmd) == 0){
+    printf("%s ainda não foi implementado\n",MKDIR);
+
+  //RMDIR
+  }else if(strcmp(RMDIR,cmd) == 0){
+    printf("%s ainda não foi implementado\n",RMDIR);
+
+  //CREATE
+  }else if(strcmp(CREATE,cmd) == 0){
+    printf("%s ainda não foi implementado\n",CREATE);
+
+  //RM
+  }else if(strcmp(RM,cmd) == 0){
+    printf("%s ainda não foi implementado\n",RM);
+
+  //WRITE
+  }else if(strcmp(WRITE,cmd) == 0){
+    printf("%s ainda não foi implementado\n",WRITE);
+
+  //CAT
+  }else if(strcmp(CAT,cmd) == 0){
+    printf("%s ainda não foi implementado\n",CAT);
+
+  // EXIT
+  }else if(strcmp(EXIT,cmd) == 0){
+    // DO NOTHING
+  }else{
+    printf("Comando não encontrado\n");
+  }
+
+}
+
 int main (void) {
   shell(); 
   //ptr_myfile = fopen("fat.part","w+");
