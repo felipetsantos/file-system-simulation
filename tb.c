@@ -158,8 +158,8 @@ void initClusterBlock(){
 	}
 	
 	/**
-  * Inicializa o i em 3 pois os blocos anteriores já 
-	* foram inicializados anteriormente
+  	* Inicializa o i em 3 pois os blocos anteriores já 
+	* foram inicializados
 	*/
 	for(i=3;i<CLUSTER_BLOCKS;i++){
 		fseek(ptr_myfile,BLOCK_SIZE*(i+4), SEEK_SET);
@@ -209,6 +209,19 @@ void init(){
   
   
 }
+void getArrayPath(char *filename,char *path[]){
+  int count;
+  count = 0;
+
+  params = strtok(params,"/");
+  
+  
+  while(params!=NULL){
+    param[count] = params;
+    params = strtok(NULL," ");
+    count++;
+  }	
+}
 // Cria diretório 
 void mkdir(const char* filename){
 	// quebra o caminho do diretório
@@ -231,8 +244,11 @@ void shell(){
   char *params;
   
   while(strcmp(EXIT,cmd) != 0){
-
-        printf("%s08103842@l1846641 %s~/ $  %s",GREEN,BLUE,WHITE);
+  	char *user,*host;
+	user = getenv("USER");
+	host = strtok(getenv("HOSTNAME"),".");
+	
+        printf("%s %s@%s %s~/ $  %s",GREEN,user,host,BLUE,WHITE);
         fgets(buffer, sizeof(buffer), stdin);
         strtok(buffer, "\n");
         params = strtok(strdup(buffer)," ");
@@ -282,7 +298,7 @@ void  selectCommand(char *cmd,char *params){
 
         // Testa se os parametros estão corretos
         if(testParams(params,1,param) == 1){
-          mkdir(parm[0]);
+          //mkdir(parm[0]);
         }else{
           printf("O comando %s não tem parametros\n",INIT);
         }
@@ -342,7 +358,7 @@ int testParams(char *params,int number,char *param[]){
 
 }
 int main (void) {
-  
+
   shell(); 
   //ptr_myfile = fopen("fat.part","w+");
 	//mkdir("teste");  
