@@ -6,7 +6,7 @@
 #define FAT_INDEX 1
 #define ROOT_DIR 2
 
-#define DIR_CODE 0x04
+#define DIR_CODE 4
 #define FILE_CODE 0x0
 
 #define END_F 0xffffffff
@@ -54,7 +54,7 @@ uint8_t block[BLOCK_SIZE];
 uint32_t fat[FAT_SIZE];
 
 // root dir
-struct dir_entry root_dir[ROOT_DIR_SIZE];
+struct dir_entry block_dir[ROOT_DIR_SIZE];
 
 FILE *ptr_myfile;
 
@@ -99,56 +99,69 @@ void initFatBlock(){
   fwrite(&fat,sizeof(fat), 1, ptr_myfile);
   fflush(ptr_myfile);
 }
+void saveFatBlock(){
+  if (!ptr_myfile)
+  {
+    printf("Unable to open file!");
+    return 1;
+  }  
+  fseek(ptr_myfile,BLOCK_SIZE, SEEK_SET);
 
+  fwrite(&fat,sizeof(fat), 1, ptr_myfile);
+  fflush(ptr_myfile);
+}
+void saveDirBlock(int i){
+  if (!ptr_myfile)
+  {
+    printf("Unable to open file!");
+    return 1;
+  }
+  fseek(ptr_myfile,BLOCK_SIZE * i, SEEK_SET);
+  fwrite(&block_dir,sizeof(block_dir), 1, ptr_myfile);
+  fflush(ptr_myfile);
+}
 // Inicializa o root dir
 void initRootDir(){
   int i;
   int k;
   for ( i = 0; i < ROOT_DIR_SIZE; i++)
   {
-    root_dir[i].first_block = 0;
-    root_dir[i].size = 0;
-    root_dir[i].attributes = 0;
+    block_dir[i].first_block = 0;
+    block_dir[i].size = 0;
+    block_dir[i].attributes = 0;
     for (k = 0; k < 16; k++)
     {
-      root_dir[i].filename[k] = 0;
+      block_dir[i].filename[k] = 0;
     }
     
     for (k = 0; k < 7; k++)
     {
-      root_dir[i].reserved[k] = 0 ; 
+      block_dir[i].reserved[k] = 0 ; 
     }
 
   }
-
-  if (!ptr_myfile)
-  {
-    printf("Unable to open file!");
-    return 1;
-  }
-
-  fseek(ptr_myfile,BLOCK_SIZE * 2, SEEK_SET);
-  fwrite(&root_dir,sizeof(root_dir), 1, ptr_myfile);
-  fflush(ptr_myfile);
+  saveDirBlock(2);
 }
 
 // Inicializa o cluster
 void initClusterBlock(){
-	int i;
+  int i;
   int k;
-  struct dir_entry dir;
-  
-  dir.first_block = 0;
-  dir.size = 0;
-  dir.attributes = 0;
-  for (k = 0; k < 16; k++)
+  for ( i = 0; i < ROOT_DIR_SIZE; i++)
   {
-    dir.filename[k] = 0;
-  }
-  
-  for (k = 0; k < 7; k++)
-  {
-    dir.reserved[k] = 0 ; 
+    block_dir[i].first_block = 0;
+    block_dir[i].size = 0;
+    block_dir[i].attributes = 0;
+    for (k = 0; k < 16; k++)
+    {
+      block_dir[i].filename[k] = 0;
+    }
+    
+    for (k = 0; k < 7; k++)
+    {
+      block_dir[i].reserved[k] = 0 ; 
+    }
+
   }
 
 	if (!ptr_myfile)
@@ -163,7 +176,7 @@ void initClusterBlock(){
 	*/
 	for(i=3;i<CLUSTER_BLOCKS;i++){
 		fseek(ptr_myfile,BLOCK_SIZE*(i+4), SEEK_SET);
-		fwrite(&dir,sizeof(dir), 1, ptr_myfile);
+		fwrite(&block_dir,sizeof(block_dir), 1, ptr_myfile);
 		fflush(ptr_myfile);
 	}
 }
@@ -182,9 +195,25 @@ void loadBlock(int block_index){
     * SEEK_CUR comeca na posicao corrente do arquivo
     */
     fseek(ptr_myfile,BLOCK_SIZE*block_index, SEEK_SET);
-    fread(&block, sizeof(block), 1, ptr_myfile);
+	
+    fread(&block_dir, sizeof(block_dir), 1, ptr_myfile);
 }
+void loadFat(){
 
+    if (!ptr_myfile)
+    {
+      printf("Unable to open file!");
+      return 1;
+    }
+    /*
+    * SEEK_SET comeca no inicio do arquivo
+    * SEEK_END comeca no fim do arquivo
+    * SEEK_CUR comeca na posicao corrente do arquivo
+    */
+    fseek(ptr_myfile,BLOCK_SIZE, SEEK_SET);
+	
+    fread(&fat, sizeof(fat), 1, ptr_myfile);
+}
 
 void init(){
 
@@ -209,6 +238,7 @@ void init(){
   
   
 }
+/*
 void getArrayPath(char *filename,char *path[]){
   int count;
   count = 0;
@@ -221,20 +251,79 @@ void getArrayPath(char *filename,char *path[]){
     params = strtok(NULL," ");
     count++;
   }	
+}*/
+int searchDir(char *filename,int *block){
+	int i,index;
+	uint8_t file[16];
+	strcpy(file,filename);
+	index = *block;
+	loadBlock(index);
+	for(i=0;i<ROOT_DIR_SIZE;i++){
+		
+		if(memcmp(block_dir[i].filename, file, sizeof(block_dir[i].filename)) == 0 
+		&& block_dir[i].attributes == 0){
+			*block = block_dir[i].first_block;
+			return 1;
+		}
+		 	
+	}
+	return 0;
 }
+
+int getFreeFatPosition(){
+  int i;
+  loadFat();
+  for(i=ROOT_DIR+1;i<FAT_SIZE;i++){
+    if(fat[i] == 0){
+	return i;
+    }
+  }		
+ return -1;
+}
+
+
 // Cria diretório 
 void mkdir(const char* filename){
 	// quebra o caminho do diretório
 	char *toke;
 	char *name;
+	int block,dir_exist,free_fat,i;
+	block = ROOT_DIR;
 	toke = strtok(strdup(filename),"/");
 	name = toke;
+
 	while(toke!=NULL){
 		
 		name = toke;
-		toke= strtok(NULL,"/");	
+		toke= strtok(NULL,"/");
+		
+		dir_exist = searchDir(name,&block);
+		if( dir_exist == 0 && toke != NULL){
+			printf("Diretório ou arquivo não encontrado");
+		}
+			
+		
 	}
-	printf("tamano do caracter %s \n",name);
+	
+	// Testa se o diretório existe
+	if(dir_exist == 0){
+	  free_fat = getFreeFatPosition();
+	 for(i=0;i<ROOT_DIR_SIZE;i++){
+		if(block_dir[i].attributes == 0 && block_dir[i].reserved[DIR_CODE] ==0 ){
+			strcpy(block_dir[i].filename,name);
+			block_dir[i].first_block = free_fat;			
+			block_dir[i].reserved[DIR_CODE] = 1;
+			break;
+		}
+	  }
+	  saveDirBlock(block); 
+	  fat[free_fat] = -1;
+	  saveFatBlock();
+	   
+	}else{
+		printf("Já existe um diretório com o nome %s \n",name);
+	}
+	
 }
 
 void shell(){
@@ -280,7 +369,7 @@ void  selectCommand(char *cmd,char *params){
     }else{
       printf("O comando %s não tem parametros\n",INIT);
     }
-
+   fclose(ptr_myfile);
   //LOAD
   }else if(strcmp(LOAD,cmd) == 0){
     printf("%s ainda não foi implementado\n",LOAD);
@@ -294,15 +383,15 @@ void  selectCommand(char *cmd,char *params){
         char *param[1];
 
         // Executa o comando mkdir
-        ptr_myfile = fopen("fat.part","w+");
+        ptr_myfile = fopen("fat.part","r+");
 
         // Testa se os parametros estão corretos
         if(testParams(params,1,param) == 1){
-          //mkdir(parm[0]);
+           mkdir(param[0]);
         }else{
           printf("O comando %s não tem parametros\n",INIT);
         }
-
+	fclose(ptr_myfile);
   //RMDIR
   }else if(strcmp(RMDIR,cmd) == 0){
     printf("%s ainda não foi implementado\n",RMDIR);
@@ -364,7 +453,7 @@ int main (void) {
 	//mkdir("teste");  
 	//init();
   
-  //fclose(ptr_myfile);
+  
 
   return 0;
 }
