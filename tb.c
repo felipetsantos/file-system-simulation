@@ -247,25 +247,7 @@ void init(){
   
   
 }
-/*
-<<<<<<< HEAD
-void getArrayPath(char *filename,char *path[]){\n
-=======
-void getArrayPath(char *filename,char *path[]){
->>>>>>> 9ef0b29c07d2725fbfeb213715c5a509b42b58f8
-  int count;
-  count = 0;
 
-  params = strtok(params,"/");
-  
-  
-  while(params!=NULL){
-    param[count] = params;
-    params = strtok(NULL," ");
-    count++;
-<<<<<<< HEAD
-  } 
-}*/
 int searchDir(char *filename,int *block){
   int i,index;
   uint8_t file[16];
@@ -274,8 +256,7 @@ int searchDir(char *filename,int *block){
   loadBlock(index);
   for(i=0;i<ROOT_DIR_SIZE;i++){
     
-    if(isDir(block_dir[i]) && memcmp(block_dir[i].filename, file, sizeof(block_dir[i].filename)) == 0 
-    ){
+    if(isDir(block_dir[i]) && memcmp(block_dir[i].filename, file, sizeof(block_dir[i].filename)) == 0 ){
       *block = block_dir[i].first_block;
       return i;
     }
@@ -289,7 +270,6 @@ int getFreeFatPosition(){
   loadFat();
   for(i=ROOT_DIR+1;i<FAT_SIZE;i++){
     if(fat[i] == 0){
-<<<<<<< HEAD
        return i;
     }
   }   
