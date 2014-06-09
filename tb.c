@@ -517,7 +517,7 @@ void  selectCommand(char *cmd,char *params){
         if(testParams(params,1,param) == 1){
            ls(param[0]);
         }else{
-          printf("O comando %s não tem parametros\n",INIT);
+          printf("Formato do %s: %s [PATH]\n",LS,LS);
         }
         fclose(ptr_myfile);
   // MKDIR
@@ -531,8 +531,8 @@ void  selectCommand(char *cmd,char *params){
         if(testParams(params,1,param) == 1){
            mkdir(param[0]);
         }else{
-          printf("O comando %s não tem parametros\n",INIT);
-          }
+          printf("Formato do %s: %s [PATH/DIRNAME]\n",MKDIR,MKDIR);
+        }
          fclose(ptr_myfile);
   //RMDIR
   }else if(strcmp(RMDIR,cmd) == 0){
@@ -545,7 +545,7 @@ void  selectCommand(char *cmd,char *params){
         if(testParams(params,1,param) == 1){
            rmdir(param[0]);
         }else{
-          printf("O comando %s não tem parametros\n",INIT);
+          printf("Formato do %s: %s [PATH/DIRNAME]\n",RMDIR,RMDIR);
         }
         fclose(ptr_myfile);
   //CREATE
