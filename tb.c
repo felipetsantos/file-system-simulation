@@ -189,6 +189,7 @@ void initClusterBlock(){
     fwrite(&block_dir,sizeof(block_dir), 1, ptr_myfile);
     fflush(ptr_myfile);
   }
+
 }
 
 // Carrega um bloco para a estrutura block 
@@ -205,7 +206,6 @@ void loadBlock(int block_index){
     * SEEK_CUR comeca na posicao corrente do arquivo
     */
     fseek(ptr_myfile,BLOCK_SIZE*block_index, SEEK_SET);
-  
     fread(&block_dir, sizeof(block_dir), 1, ptr_myfile);
 }
 void loadFat(){
@@ -221,7 +221,6 @@ void loadFat(){
     * SEEK_CUR comeca na posicao corrente do arquivo
     */
     fseek(ptr_myfile,BLOCK_SIZE, SEEK_SET);
-  
     fread(&fat, sizeof(fat), 1, ptr_myfile);
 }
 
@@ -249,7 +248,11 @@ void init(){
   
 }
 /*
+<<<<<<< HEAD
 void getArrayPath(char *filename,char *path[]){\n
+=======
+void getArrayPath(char *filename,char *path[]){
+>>>>>>> 9ef0b29c07d2725fbfeb213715c5a509b42b58f8
   int count;
   count = 0;
 
@@ -260,6 +263,7 @@ void getArrayPath(char *filename,char *path[]){\n
     param[count] = params;
     params = strtok(NULL," ");
     count++;
+<<<<<<< HEAD
   } 
 }*/
 int searchDir(char *filename,int *block){
@@ -285,6 +289,7 @@ int getFreeFatPosition(){
   loadFat();
   for(i=ROOT_DIR+1;i<FAT_SIZE;i++){
     if(fat[i] == 0){
+<<<<<<< HEAD
        return i;
     }
   }   
@@ -391,7 +396,6 @@ void ls(const char* filename){
     }
   }
 
-
 }
 
 void rmdir(const char* filename){
@@ -438,7 +442,6 @@ void rmdir(const char* filename){
             loadFat();
             fat[block_dir[i].first_block] = 0;
             saveDirBlock(dir_block);
-
             saveFatBlock();
             break;
           }else{
@@ -461,14 +464,13 @@ void shell(){
   //char *params[];
   char *params;
 
+
   cmd = "";
   params = "";
   while(strcmp(EXIT,cmd) != 0){
      char *user,*host;
      user = "08103842";
      host = "l1847524";
- 
-  
         printf("%s %s@%s %s~/ $  %s",GREEN,user,host,BLUE,WHITE);
         fgets(buffer, sizeof(buffer), stdin);
         strtok(buffer, "\n");
@@ -533,7 +535,8 @@ void  selectCommand(char *cmd,char *params){
         }else{
           printf("Formato do %s: %s [PATH/DIRNAME]\n",MKDIR,MKDIR);
         }
-         fclose(ptr_myfile);
+
+        fclose(ptr_myfile);
   //RMDIR
   }else if(strcmp(RMDIR,cmd) == 0){
         char *param[1];
@@ -601,11 +604,5 @@ int testParams(char *params,int number,char *param[]){
 int main (void) {
 
   shell(); 
-  //ptr_myfile = fopen("fat.part","w+");
-  //mkdir("teste");  
-  //init();
-  
-  
-
   return 0;
 }
