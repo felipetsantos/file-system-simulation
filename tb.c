@@ -6,7 +6,7 @@
 #define FAT_INDEX 1
 #define ROOT_DIR 2
 
-#define DIR_CODE 0x04
+#define DIR_CODE 4
 #define FILE_CODE 0x0
 
 #define END_F 0xffffffff
@@ -36,6 +36,13 @@
 #define CAT "cat"
 #define SAUDACOES "VOLTE SEMPRE!"
 
+// FILE ATTRIBUTES
+
+#define READ_ONLY 1
+#define EXEC 2
+#define HIDDEN 4
+#define DIRECTORY 8
+#define DELETED 128
 
 
 // dir entry
@@ -54,7 +61,7 @@ uint8_t block[BLOCK_SIZE];
 uint32_t fat[FAT_SIZE];
 
 // root dir
-struct dir_entry root_dir[ROOT_DIR_SIZE];
+struct dir_entry block_dir[ROOT_DIR_SIZE];
 
 FILE *ptr_myfile;
 
@@ -99,26 +106,72 @@ void initFatBlock(){
   fwrite(&fat,sizeof(fat), 1, ptr_myfile);
   fflush(ptr_myfile);
 }
+void saveFatBlock(){
+  if (!ptr_myfile)
+  {
+    printf("Unable to open file!");
+    return 1;
+  }  
+  fseek(ptr_myfile,BLOCK_SIZE, SEEK_SET);
 
+  fwrite(&fat,sizeof(fat), 1, ptr_myfile);
+  fflush(ptr_myfile);
+}
+void saveDirBlock(int i){
+  if (!ptr_myfile)
+  {
+    printf("Unable to open file!");
+    return 1;
+  }
+  fseek(ptr_myfile,BLOCK_SIZE * i, SEEK_SET);
+  fwrite(&block_dir,sizeof(block_dir), 1, ptr_myfile);
+  fflush(ptr_myfile);
+}
 // Inicializa o root dir
 void initRootDir(){
   int i;
   int k;
   for ( i = 0; i < ROOT_DIR_SIZE; i++)
   {
-    root_dir[i].first_block = 0;
-    root_dir[i].size = 0;
-    root_dir[i].attributes = 0;
+    block_dir[i].first_block = 0;
+    block_dir[i].size = 0;
+    block_dir[i].attributes = 0;
     for (k = 0; k < 16; k++)
     {
-      root_dir[i].filename[k] = 0;
+      block_dir[i].filename[k] = 0;
     }
     
     for (k = 0; k < 7; k++)
     {
-      root_dir[i].reserved[k] = 0 ; 
+      block_dir[i].reserved[k] = 0 ; 
     }
 
+  }
+  saveDirBlock(2);
+}
+
+void resetDirEntry(struct dir_entry dir){
+    int k;
+    dir.first_block = 0;
+    dir.size = 0;
+    dir.attributes = 0;
+    for (k = 0; k < 16; k++)
+    {
+      dir.filename[k] = 0;
+    }
+    
+    for (k = 0; k < 7; k++)
+    {
+      dir.reserved[k] = 0 ; 
+    }
+}
+// Inicializa o cluster
+void initClusterBlock(){
+  int i;
+  
+  for ( i = 0; i < ROOT_DIR_SIZE; i++)
+  {
+    resetDirEntry(block_dir[i]);
   }
 
   if (!ptr_myfile)
@@ -126,46 +179,16 @@ void initRootDir(){
     printf("Unable to open file!");
     return 1;
   }
-
-  fseek(ptr_myfile,BLOCK_SIZE * 2, SEEK_SET);
-  fwrite(&root_dir,sizeof(root_dir), 1, ptr_myfile);
-  fflush(ptr_myfile);
-}
-
-// Inicializa o cluster
-void initClusterBlock(){
-	int i;
-  int k;
-  struct dir_entry dir;
   
-  dir.first_block = 0;
-  dir.size = 0;
-  dir.attributes = 0;
-  for (k = 0; k < 16; k++)
-  {
-    dir.filename[k] = 0;
+  /**
+    * Inicializa o i em 3 pois os blocos anteriores já 
+  * foram inicializados
+  */
+  for(i=3;i<CLUSTER_BLOCKS;i++){
+    fseek(ptr_myfile,BLOCK_SIZE*(i+4), SEEK_SET);
+    fwrite(&block_dir,sizeof(block_dir), 1, ptr_myfile);
+    fflush(ptr_myfile);
   }
-  
-  for (k = 0; k < 7; k++)
-  {
-    dir.reserved[k] = 0 ; 
-  }
-
-	if (!ptr_myfile)
-	{
-		printf("Unable to open file!");
-		return 1;
-	}
-	
-	/**
-  * Inicializa o i em 3 pois os blocos anteriores já 
-	* foram inicializados anteriormente
-	*/
-	for(i=3;i<CLUSTER_BLOCKS;i++){
-		fseek(ptr_myfile,BLOCK_SIZE*(i+4), SEEK_SET);
-		fwrite(&dir,sizeof(dir), 1, ptr_myfile);
-		fflush(ptr_myfile);
-	}
 }
 
 // Carrega um bloco para a estrutura block 
@@ -182,9 +205,25 @@ void loadBlock(int block_index){
     * SEEK_CUR comeca na posicao corrente do arquivo
     */
     fseek(ptr_myfile,BLOCK_SIZE*block_index, SEEK_SET);
-    fread(&block, sizeof(block), 1, ptr_myfile);
+  
+    fread(&block_dir, sizeof(block_dir), 1, ptr_myfile);
 }
+void loadFat(){
 
+    if (!ptr_myfile)
+    {
+      printf("Unable to open file!");
+      return 1;
+    }
+    /*
+    * SEEK_SET comeca no inicio do arquivo
+    * SEEK_END comeca no fim do arquivo
+    * SEEK_CUR comeca na posicao corrente do arquivo
+    */
+    fseek(ptr_myfile,BLOCK_SIZE, SEEK_SET);
+  
+    fread(&fat, sizeof(fat), 1, ptr_myfile);
+}
 
 void init(){
 
@@ -209,30 +248,228 @@ void init(){
   
   
 }
-// Cria diretório 
-void mkdir(const char* filename){
-	// quebra o caminho do diretório
-	char *toke;
-	char *name;
-	toke = strtok(strdup(filename),"/");
-	name = toke;
-	while(toke!=NULL){
-		
-		name = toke;
-		toke= strtok(NULL,"/");	
-	}
-	printf("tamano do caracter %s \n",name);
+/*
+void getArrayPath(char *filename,char *path[]){\n
+  int count;
+  count = 0;
+
+  params = strtok(params,"/");
+  
+  
+  while(params!=NULL){
+    param[count] = params;
+    params = strtok(NULL," ");
+    count++;
+  } 
+}*/
+int searchDir(char *filename,int *block){
+  int i,index;
+  uint8_t file[16];
+  strcpy(file,filename);
+  index = *block;
+  loadBlock(index);
+  for(i=0;i<ROOT_DIR_SIZE;i++){
+    
+    if(isDir(block_dir[i]) && memcmp(block_dir[i].filename, file, sizeof(block_dir[i].filename)) == 0 
+    ){
+      *block = block_dir[i].first_block;
+      return i;
+    }
+      
+  }
+  return -1;
 }
 
+int getFreeFatPosition(){
+  int i;
+  loadFat();
+  for(i=ROOT_DIR+1;i<FAT_SIZE;i++){
+    if(fat[i] == 0){
+       return i;
+    }
+  }   
+ return -1;
+}
+
+int isDir(struct dir_entry dir){
+  
+  if((dir.attributes & DIRECTORY) && !(dir.attributes & DELETED) ){
+    return 1;    
+  }else{
+    return 0;  
+  }
+
+}
+// Cria diretório 
+void mkdir(const char* filename){
+  // quebra o caminho do diretório
+  char *toke;
+  char *name;
+  int block,dir_exist,free_fat,i,has_error;
+  has_error = 0;
+  block = ROOT_DIR;
+  toke = strtok(strdup(filename),"/");
+  name = toke;
+
+  while(toke!=NULL){
+    
+    name = toke;
+    toke= strtok(NULL,"/");
+    
+    dir_exist = searchDir(name,&block);
+    if( dir_exist == -1 && toke != NULL){
+      printf("Diretório ou arquivo não encontrado\n");
+      has_error = 1;
+    }
+      
+    
+  }
+  
+
+  if(has_error == 0){
+    // Testa se o diretório existe
+    if(dir_exist == -1){
+      free_fat = getFreeFatPosition();
+     for(i=0;i<ROOT_DIR_SIZE;i++){
+      if(block_dir[i].filename[0] == 0 ||  block_dir[i].attributes & DELETED){
+        
+        resetDirEntry(block_dir[i]);
+        
+        strcpy(block_dir[i].filename,name);
+        block_dir[i].first_block = free_fat;
+        block_dir[i].attributes = DIRECTORY;      
+
+        break;
+      }
+      }
+      saveDirBlock(block); 
+      fat[free_fat] = -1;
+      saveFatBlock();
+       
+    }else{
+      printf("Já existe um diretório com o nome %s \n",name);
+    }
+  }
+  
+}
+
+
+void ls(const char* filename){
+  char *toke;
+  char *name;
+  int block,dir_exist,free_fat,i;
+  block = ROOT_DIR;
+  if(strcmp("/",filename) == 0 ){
+    dir_exist = 1;
+
+  }else{
+    toke = strtok(strdup(filename),"/");
+    name = toke;
+
+    while(toke!=NULL){
+      
+      name = toke;
+      toke= strtok(NULL,"/");
+      
+      dir_exist = searchDir(name,&block);
+      if( dir_exist == -1 && toke != NULL){
+        printf("Diretório ou arquivo não encontrado\n");
+      }
+        
+      
+    }
+  }
+  if(dir_exist == -1){
+    printf("Diretório ou arquivo não encontrado\n");
+  }else{
+    loadBlock(block);
+    for(i=0;i<ROOT_DIR_SIZE;i++){
+      if(isDir(block_dir[i]) == 1){
+        printf("\t%s\n",block_dir[i].filename);
+      }
+      
+    }
+  }
+
+
+}
+
+void rmdir(const char* filename){
+  char *toke;
+  char *name;
+  int block,dir_exist,dir_block,i,k,is_empty;
+  block = ROOT_DIR;
+  if(strcmp("/",filename) == 0 ){
+    printf("O diretório raiz não pode ser removido\n");
+  }else{
+    toke = strtok(strdup(filename),"/");
+    name = toke;
+
+    while(toke!=NULL){
+      
+      name = toke;
+      toke= strtok(NULL,"/");
+      dir_block = block;
+      dir_exist = searchDir(name,&block);
+      if( dir_exist == -1 && toke != NULL){
+        printf("Diretório ou arquivo não encontrado\n");
+      }
+        
+      
+    }
+    if(dir_exist == -1){
+      printf("Diretório ou arquivo não encontrado\n");
+    }else{
+
+      for(i=0;i<ROOT_DIR_SIZE;i++){
+       
+        if(isDir(block_dir[i]) && strcmp(block_dir[i].filename,name) == 0){
+          loadBlock(block);
+          is_empty =0;
+          for (k = 0; k < ROOT_DIR_SIZE; k++)
+          {
+            if(isDir(block_dir[k])){
+              is_empty =1;
+            }
+          }
+          loadBlock(dir_block);
+          if(is_empty == 0){
+            block_dir[i].attributes = block_dir[i].attributes | DELETED;
+            loadFat();
+            fat[block_dir[i].first_block] = 0;
+            saveDirBlock(dir_block);
+
+            saveFatBlock();
+            break;
+          }else{
+            printf("Para remover o diretório ele deve estar vazio\n");
+            break;
+          }
+
+        }
+        
+      }
+    }
+
+  }
+
+}
 void shell(){
   char buffer[1024];
   char *cmd;
+ 
   //char *params[];
   char *params;
-  
-  while(strcmp(EXIT,cmd) != 0){
 
-        printf("%s08103842@l1846641 %s~/ $  %s",GREEN,BLUE,WHITE);
+  cmd = "";
+  params = "";
+  while(strcmp(EXIT,cmd) != 0){
+     char *user,*host;
+     user = "08103842";
+     host = "l1847524";
+ 
+  
+        printf("%s %s@%s %s~/ $  %s",GREEN,user,host,BLUE,WHITE);
         fgets(buffer, sizeof(buffer), stdin);
         strtok(buffer, "\n");
         params = strtok(strdup(buffer)," ");
@@ -264,33 +501,53 @@ void  selectCommand(char *cmd,char *params){
     }else{
       printf("O comando %s não tem parametros\n",INIT);
     }
-
+   fclose(ptr_myfile);
   //LOAD
   }else if(strcmp(LOAD,cmd) == 0){
     printf("%s ainda não foi implementado\n",LOAD);
 
   // LS
   }else if(strcmp(LS,cmd) == 0){
-    printf("%s ainda não foi implementado\n",LS);
+        char *param[1];
 
+        
+        ptr_myfile = fopen("fat.part","r+");
+
+        // Testa se os parametros estão corretos
+        if(testParams(params,1,param) == 1){
+           ls(param[0]);
+        }else{
+          printf("O comando %s não tem parametros\n",INIT);
+        }
+        fclose(ptr_myfile);
   // MKDIR
   }else if(strcmp(MKDIR,cmd) == 0){
         char *param[1];
 
         // Executa o comando mkdir
-        ptr_myfile = fopen("fat.part","w+");
+        ptr_myfile = fopen("fat.part","r+");
 
         // Testa se os parametros estão corretos
         if(testParams(params,1,param) == 1){
-          mkdir(parm[0]);
+           mkdir(param[0]);
+        }else{
+          printf("O comando %s não tem parametros\n",INIT);
+          }
+         fclose(ptr_myfile);
+  //RMDIR
+  }else if(strcmp(RMDIR,cmd) == 0){
+        char *param[1];
+
+        // Executa o comando mkdir
+        ptr_myfile = fopen("fat.part","r+");
+
+        // Testa se os parametros estão corretos
+        if(testParams(params,1,param) == 1){
+           rmdir(param[0]);
         }else{
           printf("O comando %s não tem parametros\n",INIT);
         }
-
-  //RMDIR
-  }else if(strcmp(RMDIR,cmd) == 0){
-    printf("%s ainda não foi implementado\n",RMDIR);
-
+        fclose(ptr_myfile);
   //CREATE
   }else if(strcmp(CREATE,cmd) == 0){
     printf("%s ainda não foi implementado\n",CREATE);
@@ -342,13 +599,13 @@ int testParams(char *params,int number,char *param[]){
 
 }
 int main (void) {
-  
+
   shell(); 
   //ptr_myfile = fopen("fat.part","w+");
-	//mkdir("teste");  
-	//init();
+  //mkdir("teste");  
+  //init();
   
-  //fclose(ptr_myfile);
+  
 
   return 0;
 }
