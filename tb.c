@@ -130,6 +130,18 @@ void saveDirBlock(int i){
   fwrite(&block_dir,sizeof(block_dir), 1, ptr_myfile);
   fflush(ptr_myfile);
 }
+
+void saveBlock(int i){
+  if (!ptr_myfile)
+  {
+    printf("%s",FILE_SYSTEM_NOT_LOAD);
+    return 1;
+  }
+  fseek(ptr_myfile,BLOCK_SIZE * i, SEEK_SET);
+  fwrite(&block,sizeof(block), 1, ptr_myfile);
+  fflush(ptr_myfile);
+}
+
 // Inicializa o root dir
 void initRootDir(){
   int i;
@@ -209,6 +221,23 @@ void loadBlock(int block_index){
     fseek(ptr_myfile,BLOCK_SIZE*block_index, SEEK_SET);
     fread(&block_dir, sizeof(block_dir), 1, ptr_myfile);
 }
+
+void loadFileBlock(int block_index){
+
+    if (!ptr_myfile)
+    {
+      printf("%s",FILE_SYSTEM_NOT_LOAD);
+      return 1;
+    }
+    /*
+    * SEEK_SET comeca no inicio do arquivo
+    * SEEK_END comeca no fim do arquivo
+    * SEEK_CUR comeca na posicao corrente do arquivo
+    */
+    fseek(ptr_myfile,BLOCK_SIZE*block_index, SEEK_SET);
+    fread(&block, sizeof(block), 1, ptr_myfile);
+}
+
 void loadFat(){
 
     if (!ptr_myfile)
@@ -530,24 +559,37 @@ void create(const char* filename){
 }
 
 void resetFileBlocks(int i){
-   int aux;
-   loadFat();
-   while(fat[i] != -1){
-	int k;
-	aux = i;	
-	i = fat[i];
-        for ( k = 0; k < ROOT_DIR_SIZE; k++)
-        {
-           resetDirEntry(&(block_dir[k]));
-        }
-        saveDirBlock(i);
-	fat[aux] =0;
-   }
-   fat[i] = 0;
-   
+  int aux,k;
+  loadFat();
+  while(fat[i] != -1){
 
+    aux = i;	
+    i = fat[i];
+    for ( k = 0; k < ROOT_DIR_SIZE; k++)
+    {
+     resetDirEntry(&(block_dir[k]));
+    }
+    saveDirBlock(i);
+    fat[aux] =0;
+  }
+
+  for ( k = 0; k < ROOT_DIR_SIZE; k++)
+  {
+   resetDirEntry(&(block_dir[k]));
+  }
+  saveDirBlock(i);
+  fat[i] = 0;
 }
 
+int findBlockToWrite(int i){
+  int aux;
+  loadFat();
+  while(fat[i] != -1){
+    aux = i;  
+    i = fat[i];
+  }
+  return i;
+}
 void rm(const char* filename){
   char *toke;
   char *name;
@@ -613,6 +655,54 @@ void rm(const char* filename){
 
 }
 
+void write(char *str,char *filename){
+  // quebra o caminho do diretório
+  char *toke;
+  char *name;
+  int block_index,dir_exist,free_fat,i,has_error,k;
+  has_error = 0;
+  block_index = ROOT_DIR;
+  toke = strtok(strdup(filename),"/");
+  name = toke;
+
+  while(toke!=NULL){
+    
+    name = toke;
+    toke= strtok(NULL,"/");
+    
+    dir_exist = search(name,&block_index);
+    if( dir_exist == -1 && toke != NULL){
+      printf("Arquivo não encontrado\n");
+      has_error = 1;
+    }
+      
+    
+  }
+  
+
+  if(has_error == 0){
+    // Testa se o diretório existe
+    if(dir_exist == -1){
+      printf("O arquivo não existe \n");
+       
+    }else{
+
+      // Retorna o ultimo bloco do arquivo
+      i = findBlockToWrite(block_index);
+      loadFileBlock(i);
+      strcpy(block,str);
+      free_fat = getFreeFatPosition();
+      fat[i] = free_fat;
+      fat[free_fat] = -1;
+      saveBlock(i); 
+      saveFatBlock();
+      
+
+    }
+  }
+
+}
+
 void shell(){
   char buffer[1024];
   char *cmd;
@@ -652,7 +742,7 @@ void  selectCommand(char *cmd,char *params){
     char *param[0];
     if (!ptr_myfile)
     {
-	ptr_myfile = fopen("fat.part","w+");
+	   ptr_myfile = fopen("fat.part","w+");
     }
     // Executa o comando init
     ///ptr_myfile = fopen("fat.part","w+");
@@ -743,7 +833,16 @@ void  selectCommand(char *cmd,char *params){
         }
   //WRITE
   }else if(strcmp(WRITE,cmd) == 0){
-    printf("%s ainda não foi implementado\n",WRITE);
+        char *param[2];
+
+        // Testa se os parâmetros estão corretos
+        if(testParamsWriteCat(params,2,param) == 1){
+           // Executa o comando write
+           write(param[0],param[1]);
+        }else{
+          //Parâmetros incorretos
+          printf("Formato do %s: %s [\"STRING\"] [PATH/FILENAME]\n",WRITE,WRITE);
+        }
 
   //CAT
   }else if(strcmp(CAT,cmd) == 0){
@@ -751,8 +850,8 @@ void  selectCommand(char *cmd,char *params){
 
   // EXIT
   }else if(strcmp(EXIT,cmd) == 0){
-	// Fecha o arquivo
-	fclose(ptr_myfile);
+	 // Fecha o arquivo
+	 //fclose(ptr_myfile);
   }else{
     // O comando digitado é inválido
     printf("Comando não encontrado\n");
@@ -784,6 +883,43 @@ int testParams(char *params,int number,char *param[]){
   }
 
 }
+char *ltrim(char *s)
+{
+    while(isspace(*s)) s++;
+    return s;
+}
+int testParamsWriteCat(char *params,int number,char *param[]){
+  char *rest;
+
+  params = strtok(params,"\"");
+
+  if(params != NULL){
+    param[0] = params;
+    params = strtok(NULL,"\"");
+
+    if(params != NULL){
+
+      rest = ltrim(params);
+      params = strtok(rest," ");
+      params = strtok(NULL," ");
+    
+      if(params == NULL ){
+        param[1] = rest;
+      }else{
+        return 0;
+      }
+      
+      return 1;
+    }else{
+      return 0;
+    }
+  }else{
+    return 0;
+  }
+
+  return 0;
+}
+
 int main (void) {
 
   shell(); 
