@@ -565,19 +565,15 @@ void resetFileBlocks(int i){
 
     aux = i;	
     i = fat[i];
+    loadBlock(aux);
     for ( k = 0; k < ROOT_DIR_SIZE; k++)
     {
      resetDirEntry(&(block_dir[k]));
     }
-    saveDirBlock(i);
+    saveDirBlock(aux);
     fat[aux] =0;
   }
 
-  for ( k = 0; k < ROOT_DIR_SIZE; k++)
-  {
-   resetDirEntry(&(block_dir[k]));
-  }
-  saveDirBlock(i);
   fat[i] = 0;
 }
 
@@ -630,12 +626,12 @@ void rm(const char* filename){
       if(isValidDirEntry(block_dir[i]) && strcmp(block_dir[i].filename,name) == 0){
          // Testa se é arquivo
          if(!(block_dir[i].attributes & DIRECTORY)){
-	    // É arquivow
-            // Faz as marcações necessárias para remover o diretório
-	    block_dir[i].attributes = block_dir[i].attributes | DELETED;
+	         // É arquivow
+            // Faz as marcações necessárias para remover o arquivo
+	           block_dir[i].attributes = block_dir[i].attributes | DELETED;
             
-	    fat_i = block_dir[i].first_block;
-	    // Sava o block_dir e a Fat
+	           fat_i = block_dir[i].first_block;
+	           // Sava o block_dir e a Fat
             saveDirBlock(dir_block);
 	    
             resetFileBlocks(fat_i);
@@ -687,15 +683,19 @@ void write(char *str,char *filename){
        
     }else{
 
-      // Retorna o ultimo bloco do arquivo
-      i = findBlockToWrite(block_index);
-      loadFileBlock(i);
-      strcpy(block,str);
-      free_fat = getFreeFatPosition();
-      fat[i] = free_fat;
-      fat[free_fat] = -1;
-      saveBlock(i); 
-      saveFatBlock();
+      if(!(block_dir[dir_exist].attributes & DIRECTORY)){
+        // Retorna o ultimo bloco do arquivo
+        i = findBlockToWrite(block_index);
+        loadFileBlock(i);
+        strcpy(block,str);
+        free_fat = getFreeFatPosition();
+        fat[i] = free_fat;
+        fat[free_fat] = -1;
+        saveBlock(i); 
+        saveFatBlock();
+      }else{
+        printf("Não é possível escrever em um diretório\n");
+      }
       
 
     }
@@ -703,6 +703,58 @@ void write(char *str,char *filename){
 
 }
 
+void printBlock(){
+  printf("%s",block);
+}
+void cat(char *filename){
+  // quebra o caminho do diretório
+  char *toke;
+  char *name;
+  int block_index,dir_exist,free_fat,i,has_error,k;
+  has_error = 0;
+  block_index = ROOT_DIR;
+  toke = strtok(strdup(filename),"/");
+  name = toke;
+
+  while(toke!=NULL){
+    
+    name = toke;
+    toke= strtok(NULL,"/");
+    
+    dir_exist = search(name,&block_index);
+    if( dir_exist == -1 && toke != NULL){
+      printf("Arquivo não encontrado\n");
+      has_error = 1;
+    }
+      
+    
+  }
+  
+
+  if(has_error == 0){
+    // Testa se o diretório existe
+    if(dir_exist == -1){
+      printf("O arquivo não existe \n");
+       
+    }else{
+      if(!(block_dir[dir_exist].attributes & DIRECTORY)){
+        // Retorna o ultimo bloco do arquivo
+        while(fat[block_index] != -1){
+          loadFileBlock(block_index);
+          printBlock();
+          block_index = fat[block_index];
+
+        }
+         printf("\n");
+      }else{
+        printf("Não é possível ler um diretório\n");
+      }
+      
+
+    }
+  }
+
+}
 void shell(){
   char buffer[1024];
   char *cmd;
@@ -846,7 +898,16 @@ void  selectCommand(char *cmd,char *params){
 
   //CAT
   }else if(strcmp(CAT,cmd) == 0){
-    printf("%s ainda não foi implementado\n",CAT);
+        char *param[1];
+
+        // Testa se os parâmetros estão corretos
+        if(testParams(params,1,param) == 1){
+     // Executa o comando cat
+           cat(param[0]);
+        }else{
+    // Parâmetros incorretos
+          printf("Formato do %s: %s [PATH/FILENAME]\n",CAT,CAT);
+        }
 
   // EXIT
   }else if(strcmp(EXIT,cmd) == 0){
