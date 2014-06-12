@@ -7,6 +7,7 @@ simulação de um sistema de arquivos
 Após compilar o programa tb.c, executar os seguintes passos na ordem em que se apresentam:
 
   1- init: inicializa o sistema de arquivos com as estruturas de dados
+  
   2- load: carrega o sistema de arquivos do disco
 
 A seguir podem ser executados os seguintes comandos:
